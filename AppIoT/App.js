@@ -1,0 +1,93 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MQTTService from './src/services/mqttService';
+import StatusModal from './src/components/StatusModal';
+import LightControl from './src/components/LightControl'; 
+import Gauges from './src/components/Gauges';
+
+const mqtt = new MQTTService();
+
+export default function App() {
+  const [isConnected, setIsConnected] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [isLightOn, setIsLightOn] = useState(false);
+  const [temp, setTemp] = useState(0);
+  const [hum, setHum] = useState(0);
+
+  const mqttConfig = {
+    host: process.env.EXPO_PUBLIC_MQTT_HOST,
+    port: parseInt(process.env.EXPO_PUBLIC_MQTT_PORT),
+    path: process.env.EXPO_PUBLIC_MQTT_PATH,
+    user: process.env.EXPO_PUBLIC_MQTT_USER,
+    pass: process.env.EXPO_PUBLIC_MQTT_PASS,
+    clientId: 'RN_App_' + Math.random(),
+  };
+
+  const salvarHistorico = async (tipo, valor) => {
+    try {
+      const registro = { valor: valor, data: new Date().toLocaleString() };
+      const historicoAntigo = await AsyncStorage.getItem(`@historico_${tipo}`);
+      const historicoAtualizado = historicoAntigo ? JSON.parse(historicoAntigo) : [];
+      
+      historicoAtualizado.push(registro);
+      await AsyncStorage.setItem(`@historico_${tipo}`, JSON.stringify(historicoAtualizado));
+      console.log(`[Menção B] Salvo: ${tipo} = ${valor} em ${registro.data}`);
+    } catch (e) {
+      console.error("Erro ao salvar histórico", e);
+    }
+  };
+
+  const startConnection = () => {
+    setShowError(false);
+    mqtt.connect(
+      mqttConfig,
+      (topic, message) => {
+        if (topic === 'casa/temp') {
+          const tempValue = parseFloat(message);
+          setTemp(tempValue);
+          salvarHistorico('temperatura', tempValue);
+        }
+        if (topic === 'casa/umid') {
+          const humValue = parseFloat(message);
+          setHum(humValue);
+          salvarHistorico('umidade', humValue);
+        }
+        if (topic === 'casa/luz') setIsLightOn(message === "1");
+      },
+      () => {
+        setIsConnected(true);
+        mqtt.subscribe('casa/temp');
+        mqtt.subscribe('casa/umid');
+        mqtt.subscribe('casa/luz');
+      },
+      (err) => {
+        setIsConnected(false);
+        setShowError(true);
+      }
+    );
+  };
+
+  useEffect(() => {
+    startConnection();
+  }, []);
+
+  const toggleLight = () => {
+    const newState = isLightOn ? "0" : "1";
+    mqtt.publish('casa/luz', newState);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Smart Home IoT</Text>
+      <LightControl isLightOn={isLightOn} onToggle={toggleLight} />
+      <Gauges temp={temp} hum={hum} />
+      <StatusModal visible={showError} onRetry={startConnection} onLater={() => setShowError(false)} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#121212', padding: 20, alignItems: 'center' },
+  header: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginTop: 40, marginBottom: 20 },
+});

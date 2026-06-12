@@ -10,11 +10,9 @@ const StatusModal = ({ visible, onRetry, onLater }) => {
             Não foi possível conectar ao Broker HiveMQ.
             Verifique sua conexão e credenciais.
           </Text>
-
           <TouchableOpacity style={styles.btnRetry} onPress={onRetry}>
             <Text style={styles.btnText}>Tentar Novamente</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.btnLater} onPress={onLater}>
             <Text style={styles.btnText}>Tentar Mais Tarde</Text>
           </TouchableOpacity>
@@ -30,10 +28,10 @@ const styles = StyleSheet.create({
   },
   modalContent: { backgroundColor: '#222', padding: 30,
     borderRadius: 20, width: '85%', alignItems: 'center',
-    borderWidth: 1,borderColor: '#333'
+    borderWidth: 1, borderColor: '#333'
   },
   modalText: { color: '#FFF', marginBottom: 25,
-    textAlign: 'center',fontSize: 16
+    textAlign: 'center', fontSize: 16
   },
   btnRetry: { backgroundColor: '#27AE60', padding: 15,
     borderRadius: 12, width: '100%', marginBottom: 12
